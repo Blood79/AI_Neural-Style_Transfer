@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NeuralArt — AI Neural Style Transfer</title>
+  <meta name="description" content="Transform photographs with neural style transfer using a modern AI-powered web app.">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">NEURAL<span>ART</span></div>
+    <a href="https://github.com/Blood79/AI_Neural-Style_Transfer" target="_blank" rel="noreferrer">GitHub ↗</a>
+  </nav>
+
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">AI / COMPUTER VISION</p>
+      <h1>Turn any image into a <span>new visual language.</span></h1>
+      <p class="hero-copy">Upload a content image, choose a style reference, tune the transfer strength, and generate a neural artwork.</p>
+    </section>
+
+    <section class="workspace">
+      <form id="transferForm">
+        <div class="grid">
+          <label class="drop-card">
+            <span class="label">CONTENT IMAGE</span>
+            <input name="content" id="content" type="file" accept=".jpg,.jpeg,.png,.webp" required>
+            <span class="drop-hint">Your photo or base image</span>
+            <img id="contentPreview" class="preview hidden" alt="Content preview">
+          </label>
+
+          <label class="drop-card">
+            <span class="label">STYLE IMAGE</span>
+            <input name="style" id="style" type="file" accept=".jpg,.jpeg,.png,.webp" required>
+            <span class="drop-hint">Painting, texture, sketch, or visual reference</span>
+            <img id="stylePreview" class="preview hidden" alt="Style preview">
+          </label>
+        </div>
+
+        <div class="controls">
+          <div class="control">
+            <label for="alpha">Style strength <output id="alphaValue">100%</output></label>
+            <input id="alpha" name="alpha" type="range" min="0" max="1" value="1" step="0.05">
+          </div>
+          <div class="control">
+            <label for="steps">Quality / steps <output id="stepsValue">40</output></label>
+            <input id="steps" name="steps" type="range" min="10" max="120" value="40" step="10">
+          </div>
+          <div class="control">
+            <label for="maxSide">Processing size <output id="sizeValue">512 px</output></label>
+            <input id="maxSide" name="max_side" type="range" min="256" max="768" value="512" step="128">
+          </div>
+          <div class="control">
+            <label for="format">Output format</label>
+            <select id="format" name="format">
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="primary" id="submitBtn" type="submit">GENERATE ARTWORK</button>
+        <p id="status" class="status"></p>
+      </form>
+
+      <section id="resultCard" class="result hidden">
+        <div class="result-head">
+          <div>
+            <p class="eyebrow">OUTPUT</p>
+            <h2>Your generated artwork</h2>
+          </div>
+          <a id="downloadBtn" class="secondary" download>Download</a>
+        </div>
+        <img id="resultImage" alt="Generated artwork">
+      </section>
+    </section>
+
+    <section class="tech">
+      <span>PyTorch</span><span>VGG19</span><span>Flask</span><span>REST API</span><span>Docker</span><span>CI/CD</span><span>AWS-ready</span>
+    </section>
+  </main>
+
+  <footer>Built as an independently structured portfolio project. Inspired by neural style transfer research and the public AI-NST project by Shradha Khapra.</footer>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
