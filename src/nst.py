@@ -28,7 +28,8 @@ class StyleTransferEngine:
         self.config = config or EngineConfig()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._features = None
-        self._lock = threading.Lock()
+        self._model_lock = threading.Lock()
+        self._inference_lock = threading.Lock()
 
     @property
     def device_name(self) -> str:
@@ -40,7 +41,7 @@ class StyleTransferEngine:
 
     def _load_model(self) -> torch.nn.Sequential:
         if self._features is None:
-            with self._lock:
+            with self._model_lock:
                 if self._features is None:
                     model = vgg19(weights=VGG19_Weights.DEFAULT).features
                     model = model[: max(self.STYLE_LAYERS + (self.CONTENT_LAYER,)) + 1]
@@ -89,53 +90,56 @@ class StyleTransferEngine:
     ) -> Image.Image:
         model = self._load_model()
 
-        content_rgb = self._preprocess(content_image, max_side)
-        style_rgb = self._preprocess(style_image, max_side)
-        content = self._normalize(content_rgb).to(self.device)
-        style = self._normalize(style_rgb).to(self.device)
+        # The model is read-only, but style transfer is memory/CPU intensive.
+        # Serialize jobs so a small deployment does not OOM under concurrent requests.
+        with self._inference_lock:
+            content_rgb = self._preprocess(content_image, max_side)
+            style_rgb = self._preprocess(style_image, max_side)
+            content = self._normalize(content_rgb).to(self.device)
+            style = self._normalize(style_rgb).to(self.device)
 
-        with torch.no_grad():
-            content_target = model(content)
-            style_targets = {
-                idx: self._gram_matrix(self._run_to(style, model, idx))
-                for idx in self.STYLE_LAYERS
-            }
+            with torch.no_grad():
+                content_target = self._run_to(content, model, self.CONTENT_LAYER)
+                style_targets = {
+                    idx: self._gram_matrix(self._run_to(style, model, idx))
+                    for idx in self.STYLE_LAYERS
+                }
 
-        target = content.clone().requires_grad_(True)
-        optimizer = torch.optim.Adam([target], lr=0.03)
+            target = content.clone().requires_grad_(True)
+            optimizer = torch.optim.Adam([target], lr=0.03)
 
-        for _ in range(steps):
-            optimizer.zero_grad(set_to_none=True)
-            content_features = model(target)
-            content_loss = F.mse_loss(content_features, content_target)
+            for _ in range(steps):
+                optimizer.zero_grad(set_to_none=True)
+                content_features = self._run_to(target, model, self.CONTENT_LAYER)
+                content_loss = F.mse_loss(content_features, content_target)
 
-            style_loss = torch.zeros((), device=self.device)
-            for layer_idx in self.STYLE_LAYERS:
-                generated = self._run_to(target, model, layer_idx)
-                gram = self._gram_matrix(generated)
-                style_loss = style_loss + F.mse_loss(gram, style_targets[layer_idx])
+                style_loss = torch.zeros((), device=self.device)
+                for layer_idx in self.STYLE_LAYERS:
+                    generated = self._run_to(target, model, layer_idx)
+                    gram = self._gram_matrix(generated)
+                    style_loss = style_loss + F.mse_loss(gram, style_targets[layer_idx])
 
-            tv_loss = (
-                torch.mean(torch.abs(target[:, :, :, 1:] - target[:, :, :, :-1]))
-                + torch.mean(torch.abs(target[:, :, 1:, :] - target[:, :, :-1, :]))
-            )
+                tv_loss = (
+                    torch.mean(torch.abs(target[:, :, :, 1:] - target[:, :, :, :-1]))
+                    + torch.mean(torch.abs(target[:, :, 1:, :] - target[:, :, :-1, :]))
+                )
 
-            loss = (
-                self.config.content_weight * content_loss
-                + self.config.style_weight * style_loss
-                + self.config.tv_weight * tv_loss
-            )
-            loss.backward()
-            optimizer.step()
+                loss = (
+                    self.config.content_weight * content_loss
+                    + self.config.style_weight * style_loss
+                    + self.config.tv_weight * tv_loss
+                )
+                loss.backward()
+                optimizer.step()
 
-        generated = TF.to_pil_image(self._denormalize(target.detach()).squeeze(0).cpu())
+            generated = TF.to_pil_image(self._denormalize(target.detach()).squeeze(0).cpu())
 
-        if alpha < 1.0:
-            base = content_image.convert("RGB")
-            generated = generated.resize(base.size, Image.Resampling.LANCZOS)
-            generated = Image.blend(base, generated, alpha)
+            if alpha < 1.0:
+                base = content_image.convert("RGB")
+                generated = generated.resize(base.size, Image.Resampling.LANCZOS)
+                generated = Image.blend(base, generated, alpha)
 
-        return generated
+            return generated
 
     @staticmethod
     def _run_to(x: torch.Tensor, model: torch.nn.Sequential, layer_idx: int) -> torch.Tensor:
