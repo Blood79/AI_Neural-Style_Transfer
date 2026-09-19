@@ -1,16 +1,15 @@
 import io
 import os
 import time
-from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request, send_file
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from src.nst import StyleTransferEngine, image_to_bytes
 
-BASE_DIR = Path(__file__).resolve().parent
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+MAX_PIXELS = int(os.getenv("MAX_IMAGE_PIXELS", "40000000"))
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_UPLOAD_MB", "10")) * 1024 * 1024
@@ -26,8 +25,15 @@ def _read_image(file_storage) -> Image.Image:
         raise ValueError("Both content and style images are required.")
     if not _allowed(file_storage.filename):
         raise ValueError("Unsupported image type. Use JPG, PNG, or WEBP.")
-    image = Image.open(file_storage.stream)
-    return ImageOps.exif_transpose(image).convert("RGB")
+    try:
+        image = Image.open(file_storage.stream)
+        image = ImageOps.exif_transpose(image).convert("RGB")
+    except (UnidentifiedImageError, OSError) as exc:
+        raise ValueError("The uploaded file is not a valid image.") from exc
+
+    if image.width * image.height > MAX_PIXELS:
+        raise ValueError("Image is too large in pixel count. Please upload a smaller image.")
+    return image
 
 
 @app.get("/")
