@@ -21,7 +21,7 @@ A portfolio-grade **neural style transfer** application built with PyTorch and V
 - GitHub Actions CI
 - Jenkins pipeline with Docker build
 - AWS EC2 deployment documentation
-- Large model files stay outside Git and are downloaded/cached by torchvision
+- Large model files stay outside Git and are cached by torchvision
 
 ## Architecture
 
@@ -68,7 +68,7 @@ python app.py
 
 Open http://localhost:5000.
 
-The first style-transfer request downloads the VGG19 checkpoint through torchvision. Set the TORCH_HOME environment variable to control the cache location.
+The first style-transfer request downloads the VGG19 checkpoint through torchvision. Set TORCH_HOME to control the cache location.
 
 ## Docker
 
@@ -95,21 +95,21 @@ curl -X POST http://localhost:5000/api/v1/style-transfer \
 
 ## CI/CD
 
-GitHub Actions performs dependency installation, Python syntax checks, tests, and a Docker build on pushes and pull requests to main.
+GitHub Actions performs dependency installation, syntax checks, tests, and a Docker build on pushes and pull requests to main.
 
 Jenkins performs the Python test stage and builds the production container image.
 
 ## AWS
 
-See [docs/AWS_EC2.md](docs/AWS_EC2.md) for an EC2 deployment path.
+See [docs/AWS_EC2.md](docs/AWS_EC2.md).
 
 ## Attribution
 
-This is an independently structured portfolio implementation inspired by neural style transfer and the public AI-NST project by Shradha Khapra:
+This repository is an independently structured portfolio implementation inspired by neural style transfer and the public AI-NST project by Shradha Khapra:
 
 https://github.com/shradha-khapra/ai-nst-project
 
-The UI, REST API, containerization, CI/CD configuration, deployment documentation, and current application structure are part of this repository. Third-party assets and model weights remain subject to their respective licenses and terms.
+The current UI, API, containerization, CI/CD configuration, deployment documentation, and application structure in this repository are part of this portfolio implementation. Third-party assets and model weights remain subject to their respective licenses and terms.
 
 ## Portfolio-ready description
 
