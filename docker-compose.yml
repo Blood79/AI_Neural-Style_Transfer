@@ -1,0 +1,15 @@
+services:
+  neuralart:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      MAX_UPLOAD_MB: "10"
+      MAX_IMAGE_PIXELS: "40000000"
+      TORCH_HOME: /models
+    volumes:
+      - torch-cache:/models
+    restart: unless-stopped
+
+volumes:
+  torch-cache:
